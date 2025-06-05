@@ -63,6 +63,12 @@ ref_files = {
     "ProductionVC_Zone": pd.read_excel(os.path.join(input_path, "ProductionVC-Zone.xlsx"))['Zone.Name'].dropna().unique(),
     "SalesActivity": pd.read_excel(os.path.join(input_path, "SalesActivity.xlsx"))['Activity.Name'].dropna().unique(),
     "MarketingActivity": pd.read_excel(os.path.join(input_path, "MarketingActivity.xlsx"))['Activity.Name'].dropna().unique(),
+    "RS_BU": pd.read_excel(os.path.join(input_path, "RS-BU.xlsx"))['Business Unit.Name'].dropna().unique(),
+    "SaleRS_Zone": pd.read_excel(os.path.join(input_path, "SaleRS-Zone.xlsx"))['Zone.Name'].dropna().unique(),
+    "SBRS_Region": pd.read_excel(os.path.join(input_path, "SBRS-Region.xlsx"))['Region.Name'].dropna().unique(),
+    "Root Stock_Crop": pd.read_excel(os.path.join(input_path, "Root Stock Crop.xlsx"))['Crop.Name'].dropna().unique(),
+    "Region_Excluded_Accounts": pd.read_excel(os.path.join(input_path, "Region.Name excluded.xlsx"))['Account.Code'].dropna().astype(str).unique(),
+    "Zone_Excluded_Accounts": pd.read_excel(os.path.join(input_path, "Zone.Name excluded.xlsx"))['Account.Code'].dropna().astype(str).unique(),   
 }
 
 no_crop_check = {
@@ -95,6 +101,7 @@ def validate_row(dept, row):
     region = row.get("Region.Name", "")
     zone = row.get("Zone.Name", "")
     bu = row.get("Business Unit.Name", "")
+    account_code = str(row.get("Account.Code", "") or "").strip()
 
     # Generic checks
     if is_blank(loc) or loc.startswith("ZZ"):
@@ -118,6 +125,13 @@ def validate_row(dept, row):
             reasons.append("Incorrect Crop Name for Fruit Crop Vertical")
         elif vertical == "Common" and crop not in ref_files["Common_Crop"]:
             reasons.append("Incorrect Crop Name for Common vertical")
+        elif vertical == "Root Stock" and crop not in ref_files["Root Stock_Crop"]:
+            reasons.append("Incorrect Crop Name for Root Stock Crop Vertical")
+    # Account Code exclusion checks
+    if account_code in ref_files["Region_Excluded_Accounts"] and is_not_blank(region):
+        reasons.append("Region Name should be blank for this Account Code")
+    if account_code in ref_files["Zone_Excluded_Accounts"] and is_not_blank(zone):
+        reasons.append("Zone Name should be blank for this Account Code")
 
     # Department-specific checks
     if dept == "Parent Seed":
@@ -248,8 +262,6 @@ def validate_row(dept, row):
             reasons.append("Incorrect Function Name")
         if is_blank(vertical):
             reasons.append("Incorrect FC-Vertical Name")
-        elif vertical == "Root Stock" and any(is_not_blank(x) for x in [region, zone, bu]):
-            reasons.append("Region, Zone, BU need to check for Root Stock")
         # Activity validation for Sales
         if is_blank(act) or act.startswith("ZZ") or act not in ref_files["SalesActivity"]:
             reasons.append("Incorrect Activity Name for Sales")
@@ -281,6 +293,19 @@ def validate_row(dept, row):
                     reasons.append("Need to update Region Name can not left Blank")
                 elif region not in ref_files["SBVC_Region"]:
                     reasons.append("Incorrect Region Name for VC-Veg Crop Vertical")
+            elif vertical == "Root Stock":
+                if is_blank(bu):
+                    reasons.append("Need to update Business Unit can not left Blank")
+                elif bu not in ref_files["RS_BU"]:
+                    reasons.append("Incorrect Business Unit Name for Root Stock Crop Vertical")
+                if is_blank(zone):
+                    reasons.append("Need to update Zone can not left Blank")
+                elif zone not in ref_files["SaleRS_Zone"]:
+                    reasons.append("Incorrect Zone Name for Root Stock Crop Vertical")
+                if is_blank(region):
+                    reasons.append("Need to update Region Name can not left Blank")
+                elif region not in ref_files["SBRS_Region"]:
+                    reasons.append("Incorrect Region Name for Root Stock Crop Vertical")
 
     elif dept == "Marketing":
         valid_subs = ["Business Development", "Digital Marketing", "Product Management"]
@@ -305,7 +330,7 @@ def validate_row(dept, row):
             reasons.append("Incorrect FC-Vertical Name")
 
     elif dept == "Human Resource":
-        if sub_dept not in ["Compliances", "HR Ops", "Recruitment", "Team Welfare", "Training"]:
+        if sub_dept not in ["Compliances", "HR Ops", "Recruitment", "Team Welfare", "Training", "Common"]:
             reasons.append("Incorrect Sub Department Name")
         if func != "Support Functions":
             reasons.append("Incorrect Function Name")
@@ -313,7 +338,7 @@ def validate_row(dept, row):
             reasons.append("Incorrect FC-Vertical Name")
 
     elif dept == "Administration":
-        if sub_dept not in ["Events", "Maintenance", "Travel Desk"]:
+        if sub_dept not in ["Events", "Maintenance", "Travel Desk","Common"]:
             reasons.append("Incorrect Sub Department Name")
         if func != "Support Functions":
             reasons.append("Incorrect Function Name")
@@ -329,7 +354,7 @@ def validate_row(dept, row):
             reasons.append("Incorrect FC-Vertical Name")
 
     elif dept == "Legal":
-        if sub_dept not in ["Compliances", "Litigation"]:
+        if sub_dept not in ["Compliances", "Litigation","Common"]:
             reasons.append("Incorrect Sub Department Name")
         if func != "Support Functions":
             reasons.append("Incorrect Function Name")
